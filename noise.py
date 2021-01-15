@@ -1,3 +1,5 @@
+import os
+import argparse
 import librosa
 from pysndfx import AudioEffectsChain
 import numpy as np
@@ -218,47 +220,81 @@ sample files:
     05_ambeint.m4a
     06_office.m4a
 ------------------------------------'''
-samples = ['01_counting.m4a','02_wind_and_cars.m4a','03_truck.m4a','04_voices.m4a','05_ambeint.m4a','06_office.m4a']
 
-for s in samples:
-    # reading a file
-    filename = s
-    y, sr = read_file(filename)
+def demo():
+    samples = ['01_counting.m4a','02_wind_and_cars.m4a','03_truck.m4a','04_voices.m4a','05_ambeint.m4a','06_office.m4a']
 
-    # reducing noise using db power
-    y_reduced_power = reduce_noise_power(y, sr)
-    y_reduced_centroid_s = reduce_noise_centroid_s(y, sr)
-    y_reduced_centroid_mb = reduce_noise_centroid_mb(y, sr)
-    y_reduced_mfcc_up = reduce_noise_mfcc_up(y, sr)
-    y_reduced_mfcc_down = reduce_noise_mfcc_down(y, sr)
-    y_reduced_median = reduce_noise_median(y, sr)
+    for s in samples:
+        # reading a file
+        filename = s
+        y, sr = read_file(filename)
 
-    # trimming silences
-    y_reduced_power, time_trimmed = trim_silence(y_reduced_power)
-    # print (time_trimmed)
+        # reducing noise using db power
+        y_reduced_power = reduce_noise_power(y, sr)
+        y_reduced_centroid_s = reduce_noise_centroid_s(y, sr)
+        y_reduced_centroid_mb = reduce_noise_centroid_mb(y, sr)
+        y_reduced_mfcc_up = reduce_noise_mfcc_up(y, sr)
+        y_reduced_mfcc_down = reduce_noise_mfcc_down(y, sr)
+        y_reduced_median = reduce_noise_median(y, sr)
 
-    y_reduced_centroid_s, time_trimmed = trim_silence(y_reduced_centroid_s)
-    # print (time_trimmed)
+        # trimming silences
+        y_reduced_power, time_trimmed = trim_silence(y_reduced_power)
+        # print (time_trimmed)
 
-    y_reduced_power, time_trimmed = trim_silence(y_reduced_power)
-    # print (time_trimmed)
+        y_reduced_centroid_s, time_trimmed = trim_silence(y_reduced_centroid_s)
+        # print (time_trimmed)
 
-    y_reduced_centroid_mb, time_trimmed = trim_silence(y_reduced_centroid_mb)
-    # print (time_trimmed)
+        y_reduced_power, time_trimmed = trim_silence(y_reduced_power)
+        # print (time_trimmed)
 
-    y_reduced_mfcc_up, time_trimmed = trim_silence(y_reduced_mfcc_up)
-    # print (time_trimmed)
+        y_reduced_centroid_mb, time_trimmed = trim_silence(y_reduced_centroid_mb)
+        # print (time_trimmed)
 
-    y_reduced_mfcc_down, time_trimmed = trim_silence(y_reduced_mfcc_down)
-    # print (time_trimmed)
+        y_reduced_mfcc_up, time_trimmed = trim_silence(y_reduced_mfcc_up)
+        # print (time_trimmed)
 
-    y_reduced_median, time_trimmed = trim_silence(y_reduced_median)
+        y_reduced_mfcc_down, time_trimmed = trim_silence(y_reduced_mfcc_down)
+        # print (time_trimmed)
 
-    # generating output file [1]
-    output_file('01_samples_trimmed_noise_reduced/' ,filename, y_reduced_power, sr, '_pwr')
-    output_file('01_samples_trimmed_noise_reduced/' ,filename, y_reduced_centroid_s, sr, '_ctr_s')
-    output_file('01_samples_trimmed_noise_reduced/' ,filename, y_reduced_centroid_mb, sr, '_ctr_mb')
-    output_file('01_samples_trimmed_noise_reduced/' ,filename, y_reduced_mfcc_up, sr, '_mfcc_up')
-    output_file('01_samples_trimmed_noise_reduced/' ,filename, y_reduced_mfcc_down, sr, '_mfcc_down')
-    output_file('01_samples_trimmed_noise_reduced/' ,filename, y_reduced_median, sr, '_median')
-    output_file('01_samples_trimmed_noise_reduced/' ,filename, y, sr, '_org')
+        y_reduced_median, time_trimmed = trim_silence(y_reduced_median)
+
+        # generating output file [1]
+        output_file('01_samples_trimmed_noise_reduced/' ,filename, y_reduced_power, sr, '_pwr')
+        output_file('01_samples_trimmed_noise_reduced/' ,filename, y_reduced_centroid_s, sr, '_ctr_s')
+        output_file('01_samples_trimmed_noise_reduced/' ,filename, y_reduced_centroid_mb, sr, '_ctr_mb')
+        output_file('01_samples_trimmed_noise_reduced/' ,filename, y_reduced_mfcc_up, sr, '_mfcc_up')
+        output_file('01_samples_trimmed_noise_reduced/' ,filename, y_reduced_mfcc_down, sr, '_mfcc_down')
+        output_file('01_samples_trimmed_noise_reduced/' ,filename, y_reduced_median, sr, '_median')
+        output_file('01_samples_trimmed_noise_reduced/' ,filename, y, sr, '_org')
+
+if __name__=="__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--file", type=str, required=True, help="File to process.")
+    parser.add_argument("-m", "--methods", choices=["pwr", "ctr_s", "ctr_mb", "mfcc_up", "mfcc_down", "median"], nargs="+", help="Method(s) to use")
+    parser.add_argument("-o", "--output", type=str, required=True, help="Output file. If more methods selected, more than one file will be created and each filename will have a string (linked to the respective method) appended before the possible file extension.")
+    args = parser.parse_args()
+
+    assert len(args.methods) > 0, "Please specify at least one --method (-m)."
+
+    methods_dict = {
+        "pwr": reduce_noise_power,
+	    "ctr_s": reduce_noise_centroid_s,
+	    "ctr_mb": reduce_noise_centroid_mb,
+	    "mfcc_up": reduce_noise_mfcc_up,
+	    "mfcc_down": reduce_noise_mfcc_up,
+	    "median": reduce_noise_median
+    }
+
+    track, sr = librosa.load(args.file, duration=5.0)
+
+    reduced_tracks = []
+    for m in args.methods:
+        track_reduced, _ = trim_silence(methods_dict[m](track, sr))
+        outfile = args.output
+        if len(args.method) > 1:
+            dirname = os.path.dirname(outfile)
+            filename, extension = os.path.splitext(os.path.filename(outfile))
+            outfile = os.path.join(dirname, filename + "_" + m + extension)
+        librosa.output.write_wav(outfile, track_reduced, sr)
+        print(f"Method {args.method}: saved output to path {outfile}")
+    print("Execution completed.")
